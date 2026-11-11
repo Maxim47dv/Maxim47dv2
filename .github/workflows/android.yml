@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
       - name: Extract project
         run: unzip -q Supergram-0.1-project.zip
       - name: Install Android SDK packages
-        run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
       - name: Build APK and run lint
         working-directory: Supergram
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug
