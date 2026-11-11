@@ -24,6 +24,10 @@ jobs:
         run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
       - name: Build APK and run lint
         working-directory: Supergram
+        env:
+          SUPERGRAM_API_ID: ${{ secrets.SUPERGRAM_API_ID }}
+          SUPERGRAM_API_HASH: ${{ secrets.SUPERGRAM_API_HASH }}
+          REQUIRE_EMBEDDED_TELEGRAM_KEYS: 'true'
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug
       - uses: actions/upload-artifact@v4
         with:
