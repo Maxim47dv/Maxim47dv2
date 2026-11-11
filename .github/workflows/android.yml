@@ -8,30 +8,44 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+      - name: Extract Supergram build recipe
+        run: unzip -q Supergram-0.1-project.zip
+      - name: Check out official Telegram Android source
+        uses: actions/checkout@v4
+        with:
+          repository: DrKLO/Telegram
+          ref: 7be672ead283d022812d75c729d3a04dd4c2a2c6
+          path: Telegram
+          submodules: recursive
+          fetch-depth: 1
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
-      - name: Extract project
-        run: unzip -q Supergram-0.1-project.zip
-      - name: Install Android SDK packages
-        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
-      - name: Build APK and run lint
-        working-directory: Supergram
+          gradle-version: '8.13'
+          cache-disabled: true
+      - name: Install Android build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nasm ninja-build
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - name: Configure Supergram without changing Telegram UI
         env:
           SUPERGRAM_API_ID: ${{ secrets.SUPERGRAM_API_ID }}
           SUPERGRAM_API_HASH: ${{ secrets.SUPERGRAM_API_HASH }}
-          REQUIRE_EMBEDDED_TELEGRAM_KEYS: 'true'
-        run: gradle --no-daemon :app:assembleDebug :app:lintDebug
+        run: python3 Supergram/fork/prepare.py Telegram
+      - name: Build official interface for ARM64 Android
+        working-directory: Telegram
+        run: gradle --no-daemon --max-workers=2 :TMessagesProj_App:assembleAfatDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Supergram-debug-apk
-          path: Supergram/app/build/outputs/apk/debug/app-debug.apk
+          name: Supergram-0.8-Android-arm64
+          path: Telegram/TMessagesProj_App/build/outputs/apk/afat/debug/*.apk
           if-no-files-found: error
           retention-days: 7
