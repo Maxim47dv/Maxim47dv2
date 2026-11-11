@@ -12,7 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Extract Supergram build recipe
-        run: unzip -q Supergram-0.1-project.zip
+        run: |
+          unzip -q Supergram-0.1-project.zip
+          python3 -m py_compile Supergram/fork/prepare.py Supergram/fork/features.py
       - name: Check out official Telegram Android source
         uses: actions/checkout@v4
         with:
@@ -40,12 +42,33 @@ jobs:
           SUPERGRAM_API_ID: ${{ secrets.SUPERGRAM_API_ID }}
           SUPERGRAM_API_HASH: ${{ secrets.SUPERGRAM_API_HASH }}
         run: python3 Supergram/fork/prepare.py Telegram
+      - name: Stabilize native source timestamps
+        run: find Telegram/TMessagesProj/jni -type f -exec touch -d '2020-01-01 UTC' {} +
+      - name: Restore native compilation cache
+        id: native
+        uses: actions/cache/restore@v4
+        with:
+          key: supergram-native-7be672ea-ndk27-arm64-v1
+          path: |
+            Telegram/TMessagesProj/.cxx
+            Telegram/TMessagesProj/build/intermediates/cxx
       - name: Build official interface for ARM64 Android
         working-directory: Telegram
         run: gradle --no-daemon --max-workers=2 :TMessagesProj_App:assembleAfatDebug
+      - name: Test Supergram plugin rules
+        working-directory: Telegram
+        run: gradle --no-daemon --max-workers=2 :TMessagesProj:testDebugUnitTest --tests org.telegram.messenger.SupergramPluginsTest
+      - name: Save native compilation cache
+        if: always() && steps.native.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          key: supergram-native-7be672ea-ndk27-arm64-v1
+          path: |
+            Telegram/TMessagesProj/.cxx
+            Telegram/TMessagesProj/build/intermediates/cxx
       - uses: actions/upload-artifact@v4
         with:
-          name: Supergram-0.8-Android-arm64
+          name: Supergram-0.9-Android-arm64
           path: Telegram/TMessagesProj_App/build/outputs/apk/afat/debug/*.apk
           if-no-files-found: error
           retention-days: 7
